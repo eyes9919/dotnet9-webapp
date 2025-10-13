@@ -1,0 +1,108 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+  color: var(--bs-secondary-color);
+  text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+  text-align: start;
+}
+
+/* バッジ共通 */
+.env-badges .badge {
+  font-weight: 600;
+  border-radius: 9999px;
+  padding: .35rem .6rem;
+  font-size: .75rem;
+  border: 1px solid rgba(0, 0, 0, .08);
+}
+
+/* ENV */
+.badge-env-dev {
+  background: #e6ffed;
+  color: #056b30;
+  border-color: #c2f0d1;
+}
+
+.badge-env-stg {
+  background: #fff4e5;
+  color: #a15000;
+  border-color: #ffd7a8;
+}
+
+.badge-env-prod {
+  background: #ffe6e6;
+  color: #8c1515;
+  border-color: #ffc2c2;
+}
+
+.badge-env-container {
+  background: #e6f0ff;
+  color: #0a3a8a;
+  border-color: #c2d6ff;
+}
+
+.badge-env-unknown {
+  background: #f2f2f2;
+  color: #555;
+}
+
+/* PORT （必要に応じて増やせます） */
+.badge-port-dev {
+  background: #f0e6ff;
+  color: #5a2ca0;
+  border-color: #ddc7ff;
+}
+
+/* 9999 */
+.badge-port-container {
+  background: #e6fbff;
+  color: #055160;
+  border-color: #c2f3ff;
+}
+
+/* 9000 */
+.badge-port-default {
+  background: #eef2f7;
+  color: #3a4a5a;
+}
+
+/* SRC */
+.badge-src-local {
+  background: #edf7ff;
+  color: #084c7f;
+  border-color: #cfe9ff;
+}
+
+.badge-src-container {
+  background: #eefbea;
+  color: #285e25;
+  border-color: #d2f2c9;
+}
+
+.badge-src-default {
+  background: #f2f2f2;
+  color: #555;
+}

@@ -1,0 +1,27 @@
+{
+  "Parameters": {
+    "AddonsTemplateURL": "",
+    "AppName": "webapp",
+    "ArtifactKeyARN": "arn:aws:kms:ap-northeast-1:327845752170:key/3d460596-1e0f-45d6-be9a-6801807bb24a",
+    "ContainerImage": "",
+    "ContainerPort": "8080",
+    "DNSDelegated": "false",
+    "EnvFileARN": "",
+    "EnvFileARNFordb": "",
+    "EnvName": "test",
+    "HTTPSEnabled": "false",
+    "LogRetention": "30",
+    "RulePath": "/",
+    "TargetContainer": "webapp",
+    "TargetPort": "8080",
+    "TaskCPU": "256",
+    "TaskCount": "1",
+    "TaskMemory": "512",
+    "WorkloadName": "webapp"
+  },
+  "Tags": {
+    "copilot-application": "webapp",
+    "copilot-environment": "test",
+    "copilot-service": "webapp"
+  }
+}

@@ -1,0 +1,106 @@
+﻿@using Microsoft.AspNetCore.Identity
+@using WebApp.Utils
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+
+@{
+    var envName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Unknown";
+    var hostPort = HttpContextAccessor?.HttpContext?.Request?.Host.Value ?? "";
+    var ver = VersionInfo.AppVersion;
+    var build = VersionInfo.BuildLabel;
+    var isAuthenticated = HttpContextAccessor?.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
+    var userName = HttpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "";
+}
+
+<!DOCTYPE html>
+<html lang="ja">
+
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>@ViewData["Title"] - WebApp</title>
+        <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+        <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    </head>
+
+    <body>
+        <header>
+            <nav
+                class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-light border-bottom box-shadow mb-3">
+                <div class="container-fluid">
+                    <a class="navbar-brand" asp-page="/Index">WebApp</a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                        data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent" aria-expanded="false"
+                        aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+
+                    <div class="collapse navbar-collapse d-sm-inline-flex justify-content-between">
+                        <ul class="navbar-nav flex-grow-1">
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-page="/Index">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-page="/Users/Index">Users</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-page="/Privacy">Privacy</a>
+                            </li>
+                        </ul>
+
+                        <div class="d-flex align-items-center me-2">
+                            <span class="badge bg-secondary me-1">v @ver</span>
+                            <span class="badge bg-info text-dark me-1">@envName</span>
+                            @if (!string.IsNullOrWhiteSpace(build))
+                            {
+                                <span class="badge bg-light text-dark me-1">@build</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(hostPort))
+                            {
+                                <span class="badge bg-light text-dark">@hostPort</span>
+                            }
+                        </div>
+
+                        <ul class="navbar-nav">
+                            @if (isAuthenticated)
+                            {
+                                <li class="nav-item">
+                                    <span class="navbar-text me-2">@userName</span>
+                                </li>
+                                <li class="nav-item">
+                                    <form asp-page="/Logout" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-link nav-link">Logout</button>
+                                    </form>
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-page="/Login">Login</a>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <div class="container">
+            <main role="main" class="pb-3">
+                @RenderBody()
+            </main>
+        </div>
+
+        <footer class="border-top footer text-muted mt-auto py-3">
+            <div class="container">
+                &copy; @(DateTime.Now.Year) - WebApp
+            </div>
+        </footer>
+
+        <script src="~/lib/jquery/dist/jquery.min.js"></script>
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="~/js/site.js" asp-append-version="true"></script>
+
+        @await RenderSectionAsync("Scripts", required: false)
+    </body>
+
+</html>

@@ -1,0 +1,36 @@
+@page
+@model WebApp.Pages.LoginModel
+@{
+    ViewData["Title"] = "ログイン";
+}
+
+<h2>ログイン</h2>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">
+        @Model.ErrorMessage
+    </div>
+}
+
+<form method="post" class="mx-auto" style="max-width:480px;">
+    <input type="hidden" name="returnUrl" value="@(Model.ReturnUrl ?? string.Empty)" />
+
+    <div class="mb-3">
+        <label asp-for="Input.UserName" class="form-label">ユーザー名</label>
+        <input asp-for="Input.UserName" class="form-control" />
+        <span asp-validation-for="Input.UserName" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Input.Password" class="form-label">パスワード</label>
+        <input asp-for="Input.Password" type="password" class="form-control" />
+        <span asp-validation-for="Input.Password" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">ログイン</button>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

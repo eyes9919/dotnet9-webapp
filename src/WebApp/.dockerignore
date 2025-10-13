@@ -1,0 +1,44 @@
+# ＝＝＝ Git / IDE / OS ＝＝＝
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ＝＝＝ ビルド成果物 ＝＝＝
+**/bin/
+**/obj/
+**/out/
+**/artifacts/
+
+# ＝＝＝ フロント系（あれば） ＝＝＝
+**/node_modules/
+**/.pnpm-store/
+**/.yarn/
+
+# ＝＝＝ Docker不要ファイル ＝＝＝
+*.sln           # ソリューションはビルドに不要。csprojだけでOK
+*.user
+*.lock.json
+*.cache
+*.log
+*.swp
+
+# ＝＝＝ 開発用データ・生成ファイル ＝＝＝
+postgres-data/
+postgres-data18/
+pg_settings*.txt
+pgconf/         # 画像と違い、コンテナ内にCOPYしたいならここは外す
+
+# ＝＝＝ 秘密情報（イメージに焼かない） ＝＝＝
+.env
+secrets/
+**/*secret*
+**/*password*
+
+# ＝＝＝ 静的サイト/Docs（不要なら） ＝＝＝
+docs/
+site/

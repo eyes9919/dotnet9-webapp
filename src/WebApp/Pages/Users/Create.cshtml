@@ -1,0 +1,28 @@
+@page
+@model WebApp.Pages.AppUsers.CreateModel
+@{
+    ViewData["Title"] = "Create User";
+}
+
+<h2>Create User</h2>
+
+<form method="post">
+    <div class="mb-3">
+        <label class="form-label">UserName</label>
+        <input class="form-control" asp-for="InputUserName" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">DisplayName</label>
+        <input class="form-control" asp-for="InputDisplayName" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Password</label>
+        <input class="form-control" asp-for="InputPassword" type="password" />
+    </div>
+    <div class="form-check mb-3">
+        <input class="form-check-input" asp-for="InputIsAdmin" />
+        <label class="form-check-label" for="InputIsAdmin">Is Admin</label>
+    </div>
+    <button class="btn btn-primary" type="submit">Create</button>
+    <a class="btn btn-secondary" asp-page="./Index">Back</a>
+</form>

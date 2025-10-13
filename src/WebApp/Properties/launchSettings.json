@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "_comment": "このファイルは VS/VSCode の 'commandName: Project' で使用。HTTPS を使う場合は applicationUrl に https を追加する。",
+  "profiles": {
+    "WebApp": {
+      "_comment": "ブラウザ自動起動は serverReadyAction で制御するため false",
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5011",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

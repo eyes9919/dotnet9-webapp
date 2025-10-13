@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next"
+      Version="4.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore"
+      Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design"
+      Version="9.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"
+      Version="9.0.0" />
+  </ItemGroup>
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <!-- 画面に出す表示用。Docker ビルド時に上書き可能 -->
+    <InformationalVersion>$(Version)</InformationalVersion>
+  </PropertyGroup>
+</Project>

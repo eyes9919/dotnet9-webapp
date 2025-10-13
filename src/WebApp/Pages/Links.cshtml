@@ -1,0 +1,41 @@
+@page "/Links"
+@model WebApp.Pages.LinksModel
+@{
+    ViewData["Title"] = "リンク集";
+}
+
+<h1 class="display-6">リンク集（機能インデックス）</h1>
+<p class="text-muted">よく使うページへのショートカットです。</p>
+
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>機能</th>
+            <th>URL</th>
+            <th>説明</th>
+            <th>認証</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var link in Model.Items)
+        {
+            <tr>
+                <td><a href="@link.Url">@link.Title</a></td>
+                <td><code>@link.Url</code></td>
+                <td>@link.Description</td>
+                <td>
+                    @if (link.RequiresLogin)
+                    {
+                        <span class="badge bg-warning text-dark">要ログイン</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-success">匿名OK</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@* 追記は Links.cshtml.cs の OnGet() 内の Items に加えてください *@

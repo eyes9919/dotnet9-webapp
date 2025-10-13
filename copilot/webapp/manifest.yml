@@ -1,0 +1,46 @@
+name: webapp
+type: Load Balanced Web Service
+
+image:
+  build:
+    dockerfile: ./src/WebApp/Dockerfile
+    context: ./src/WebApp
+  port: 8080
+
+cpu: 256
+memory: 512
+platform: linux/arm64
+
+variables:
+  ASPNETCORE_URLS: http://0.0.0.0:8080
+  PORT: 8080
+  ConnectionStrings__Default: "Host=127.0.0.1;Port=5432;Database=appdb;Username=appuser;Password=apppass;Pooling=true;Keepalive=30;Timeout=10;"
+
+secrets: 
+  ADMIN_PASSWORD: /copilot/webapp/test/secrets/ADMIN_PASSWORD
+
+# PostgreSQL サイドカー定義
+sidecars:
+  db:
+    image: postgres:16
+    port: 5432
+    variables:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+      POSTGRES_HOST_AUTH_METHOD: md5
+    healthcheck:
+      command: ["CMD-SHELL", "pg_isready -U appuser -d appdb -h 127.0.0.1 -p 5432 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+http:
+  path: "/"
+  healthcheck:
+    path: "/"
+    interval: 15s
+    timeout: 10s
+    healthy_threshold: 2
+    unhealthy_threshold: 5
