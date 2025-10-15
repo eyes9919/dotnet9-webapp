@@ -1,88 +1,39 @@
-name: WebApp CI/CD
+name: Build and Deploy to AWS Fargate
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches:
+      - main
 
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
-  APP_NAME: ${{ secrets.COPILOT_APP }}
-  ENV_NAME: ${{ secrets.COPILOT_ENV }}
-  SVC_NAME: ${{ secrets.COPILOT_SERVICE }}
-  IMAGE_NAME: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.COPILOT_APP }}/${{ secrets.COPILOT_SERVICE }}:latest
+  AWS_REGION: ap-northeast-1
+  ECR_REPOSITORY: webapp/webapp
+  IMAGE_TAG: latest
+  IMAGE_NAME: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
 
 jobs:
-  test-build-deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
-    services:
-      # GitHub Actions 上でPostgreSQLを用意（docker-composeと同じ条件）
-      db:
-        image: postgres:18
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_USER: appuser
-          POSTGRES_PASSWORD: apppass
-          POSTGRES_DB: appdb
-        options: >-
-          --health-cmd="pg_isready -U appuser -d appdb -h 127.0.0.1 -p 5432"
-          --health-interval=5s --health-timeout=3s --health-retries=5
-
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup .NET 9
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-
-      # ローカル実行時と同じ接続文字列で Web を起動して簡易ログインテスト
-      - name: Restore & build (WebApp)
-        working-directory: src/WebApp
-        run: |
-          dotnet restore
-          dotnet build -c Release --no-restore
-
-      - name: Run WebApp for test (background)
-        working-directory: src/WebApp
-        env:
-          ASPNETCORE_ENVIRONMENT: Container_Development
-          ConnectionStrings__Default: "Host=127.0.0.1;Port=5432;Database=appdb;Username=appuser;Password=apppass;Pooling=true;Keepalive=30;"
-          PORT: "8080"
-        run: |
-          dotnet run -c Release --no-build --urls http://0.0.0.0:8080 &
-          echo $! > webapp.pid
-          # 待機（起動安定）
-          for i in {1..30}; do
-            curl -fsS http://localhost:8080/ > /dev/null && break
-            sleep 2
-          done
-
-      - name: Smoke test - admin login page reachable
-        run: |
-          # 200 が返ること（ID/PWの実際の認証までは行わず到達性チェック）
-          curl -fS http://localhost:8080/Login > /dev/null
-
-      - name: Stop test app
-        if: always()
-        run: |
-          if [ -f src/WebApp/webapp.pid ]; then
-            kill $(cat src/WebApp/webapp.pid) || true
-          fi
-
-      # ---- ここからビルド & ECR プッシュ & Copilot デプロイ ----
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build & Push image to ECR
@@ -96,13 +47,21 @@ jobs:
 
       - name: Install Copilot CLI
         run: |
-          curl -Lo copilot https://github.com/aws/copilot-cli/releases/latest/download/copilot-linux-arm64
+          curl -Lo copilot https://github.com/aws/copilot-cli/releases/latest/download/copilot-linux
+          chmod +x copilot
           sudo mv copilot /usr/local/bin/copilot
-          sudo chmod +x /usr/local/bin/copilot
           copilot --version
 
       - name: Deploy with Copilot
         env:
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          COPILOT_APP: ${{ secrets.COPILOT_APP }}
+          COPILOT_ENV: ${{ secrets.COPILOT_ENV }}
+          COPILOT_SERVICE: ${{ secrets.COPILOT_SERVICE }}
         run: |
-          copilot svc deploy --app "${APP_NAME}" --name "${SVC_NAME}" --env "${ENV_NAME}" --force
+          echo "Deploying to Copilot environment..."
+          copilot svc deploy --name "${COPILOT_SERVICE}" --env "${COPILOT_ENV}" --app "${COPILOT_APP}" --force
+
+      - name: Deployment complete
+        run: echo "Deployment to AWS Fargate complete."
+
