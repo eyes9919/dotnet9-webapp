@@ -2,23 +2,36 @@ name: Build and Deploy to AWS Fargate
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
+    paths-ignore:
+      - "README.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+  workflow_dispatch:
 
-env:
-  AWS_REGION: ap-northeast-1
-  ECR_REPOSITORY: webapp/webapp
-  IMAGE_TAG: latest
-  IMAGE_NAME: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+concurrency:
+  group: webapp-deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build_and_deploy:
     runs-on: ubuntu-latest
 
+    # ここで “env” を定義してから、以降の式で参照します
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
+      COPILOT_APP: ${{ secrets.COPILOT_APP }}
+      COPILOT_ENV: ${{ secrets.COPILOT_ENV }}
+      COPILOT_SERVICE: ${{ secrets.COPILOT_SERVICE }}
+      IMAGE_REPO: webapp/webapp
+      IMAGE_TAG: latest
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
+      # アクセスキーを使う前提（OIDCでRole Assumeする場合は別設定）
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -26,42 +39,51 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Set up QEMU
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up QEMU (for ARM builds)
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+      # .NET のビルドは Docker で行うため省略可。必要なら有効化:
+      # - name: Setup .NET SDK 9.0
+      #   uses: actions/setup-dotnet@v4
+      #   with:
+      #     dotnet-version: '9.0.x'
 
-      - name: Build & Push image to ECR
-        uses: docker/build-push-action@v6
-        with:
-          context: ./src/WebApp
-          file: ./src/WebApp/Dockerfile
-          push: true
-          tags: ${{ env.IMAGE_NAME }}
-          platforms: linux/arm64
+      - name: Build and push image (linux/arm64)
+        working-directory: ./src/WebApp
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --file Dockerfile \
+            --tag "${ECR_REGISTRY}/${IMAGE_REPO}:${IMAGE_TAG}" \
+            --push \
+            .
 
       - name: Install Copilot CLI
         run: |
-          curl -Lo copilot https://github.com/aws/copilot-cli/releases/latest/download/copilot-linux
-          chmod +x copilot
-          sudo mv copilot /usr/local/bin/copilot
+          curl -Lo copilot https://github.com/aws/copilot-cli/releases/latest/download/copilot-linux \
+          && chmod +x copilot \
+          && sudo mv copilot /usr/local/bin/copilot
           copilot --version
 
-      - name: Deploy with Copilot
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
-          COPILOT_APP: ${{ secrets.COPILOT_APP }}
-          COPILOT_ENV: ${{ secrets.COPILOT_ENV }}
-          COPILOT_SERVICE: ${{ secrets.COPILOT_SERVICE }}
+      # 既に App/Env/Service は手元で作成済みの想定
+      # ここでは “最新イメージ” を引かせるために --force でデプロイ
+      - name: Copilot deploy to Fargate
         run: |
-          echo "Deploying to Copilot environment..."
-          copilot svc deploy --name "${COPILOT_SERVICE}" --env "${COPILOT_ENV}" --app "${COPILOT_APP}" --force
+          copilot svc deploy \
+            --app "${COPILOT_APP}" \
+            --name "${COPILOT_SERVICE}" \
+            --env "${COPILOT_ENV}" \
+            --force
 
-      - name: Deployment complete
-        run: echo "Deployment to AWS Fargate complete."
-
+      - name: Output Service URL
+        run: |
+          copilot svc show -n "${COPILOT_SERVICE}"
