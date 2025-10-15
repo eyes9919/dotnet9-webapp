@@ -13,6 +13,8 @@ postgres-data18/
 aws_redeploy.sh
 docker_image_rebuild.sh
 
+docs/
+
 # User-specific files
 *.rsuser
 *.suo
