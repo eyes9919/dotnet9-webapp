@@ -3,6 +3,9 @@ name: build_and_deploy
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
     paths-ignore:
       - "README.md"
       - "**/*.md"
