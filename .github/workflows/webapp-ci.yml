@@ -1,32 +1,10 @@
 name: build_and_deploy
 
 on:
-  # すべての push をトリガー（main 以外はビルド/テストのみ、main はデプロイも実行）
   push:
-    branches:
-      - "**"
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "Dockerfile"
-      - "docker-compose.yml"
-      - ".github/workflows/webapp-ci.yml"
-
-  # main 宛ての PR でビルド/テスト
+    branches: [ "main", "develop", "feature/**", "chore/**" ]
   pull_request:
-    branches: [ main ]
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "Dockerfile"
-      - "docker-compose.yml"
-      - ".github/workflows/webapp-ci.yml"
-
-  # 手動実行（必要に応じて）
-  workflow_dispatch:
-
-env:
-  AWS_REGION: ap-northeast-1
+    branches: [ "main" ]
 
 permissions:
   contents: read
@@ -34,17 +12,19 @@ permissions:
 
 jobs:
   build_and_test:
-    name: Build and test
     runs-on: ubuntu-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up .NET
+      - name: Setup .NET 9.x
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: '9.0.x'
 
       - name: Restore
         run: dotnet restore ./src/WebApp/WebApp.csproj
@@ -52,30 +32,44 @@ jobs:
       - name: Build
         run: dotnet build ./src/WebApp/WebApp.csproj -c Release --no-restore
 
-      # テストは存在すれば実行（無ければスキップして成功扱い）
-      - name: Test
+      - name: Test (Integration)
         run: |
-          if [ -f ./tests/WebApp.IntegrationTests/WebApp.IntegrationTests.csproj ]; then
-            dotnet test ./tests/WebApp.IntegrationTests/WebApp.IntegrationTests.csproj -c Release --no-build
+          if [ -d "./tests/WebApp.IntegrationTests" ]; then
+            dotnet test ./tests/WebApp.IntegrationTests/WebApp.IntegrationTests.csproj -c Release --no-build --logger "trx;LogFileName=test-results.trx"
           else
-            echo "No test project found. Skipping tests."
+            echo "No tests project found. Skipping."
           fi
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/TestResults/*.trx"
+
   deploy:
-    name: Deploy to Fargate via Copilot
     needs: build_and_test
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
-    # main への push だけデプロイする（PR 作成/更新や feature ブランチでは実行しない）
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    concurrency:
-      group: "deploy-test-env"
-      cancel-in-progress: true
+    env:
+      AWS_REGION:         ${{ secrets.AWS_REGION }}
+      ECR_ACCOUNT_ID:     ${{ secrets.ECR_ACCOUNT_ID }}
+      COPILOT_APP:        ${{ secrets.COPILOT_APP }}
+      COPILOT_ENV:        ${{ secrets.COPILOT_ENV }}
+      COPILOT_SERVICE:    ${{ secrets.COPILOT_SERVICE }}
+      IMAGE_TAG:          ${{ github.sha }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # ECR にビルド・プッシュ（linux/arm64）
+      - name: Set up QEMU (for ARM builds)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -85,37 +79,39 @@ jobs:
           aws-region:            ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push image (linux/arm64)
+      - name: Build & push image (linux/arm64)
+        working-directory: ./src/WebApp
         run: |
-          IMAGE="${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/webapp/webapp:latest"
+          REPO="${ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/webapp/webapp"
           docker buildx build \
             --platform linux/arm64 \
-            -t "$IMAGE" \
-            -f ./src/WebApp/Dockerfile ./src/WebApp \
-            --push
+            -f Dockerfile \
+            -t "${REPO}:latest" \
+            -t "${REPO}:${IMAGE_TAG}" \
+            --push \
+            .
 
+      # ★ ここを修正：一時ファイルに落としてから /usr/local/bin に配置
       - name: Install Copilot CLI
         run: |
-          curl -Lo copilot https://github.com/aws/copilot-cli/releases/latest/download/copilot-linux
-          chmod +x copilot
-          sudo mv copilot /usr/local/bin/copilot
+          set -euo pipefail
+          TMP=/tmp/copilot-linux
+          curl -sSL -o "${TMP}" https://github.com/aws/copilot-cli/releases/latest/download/copilot-linux
+          sudo install -m 0755 "${TMP}" /usr/local/bin/copilot
           copilot --version
 
       - name: Copilot deploy to Fargate
+        env:
+          COPILOT_LOG_LEVEL: info
         run: |
           copilot svc deploy \
-            --app "${{ secrets.COPILOT_APP }}" \
-            --env "${{ secrets.COPILOT_ENV }}" \
-            --name "${{ secrets.COPILOT_SERVICE }}" \
+            --app "${COPILOT_APP}" \
+            --name "${COPILOT_SERVICE}" \
+            --env "${COPILOT_ENV}" \
             --force
 
       - name: Output Service URL
         run: |
-          copilot svc show -a "${{ secrets.COPILOT_APP }}" -n "${{ secrets.COPILOT_SERVICE }}"
-# CI trigger test 2025年 10月15日 水曜日 18時43分17秒 JST
+          copilot svc show -n "${COPILOT_SERVICE}" --json | jq -r '.routes[]?.url // empty'
