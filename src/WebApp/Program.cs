@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.DataProtection;
 using WebApp.Data;
+using WebApp.Models; // ← BuildInfo.cs 用
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,6 +63,13 @@ builder.Services.AddRazorPages(o =>
     o.Conventions.AllowAnonymousToPage("/Error");
     o.Conventions.AllowAnonymousToPage("/");
 });
+
+// ==========================================================
+// BuildInfo を DI に登録（ヘッダーで動的に利用）
+// ==========================================================
+// Program.cs（AddRazorPages などの後でOK）
+builder.Services.AddSingleton<WebApp.Models.BuildInfo>(_ => new WebApp.Models.BuildInfo());
+// ==========================================================
 
 var app = builder.Build();
 

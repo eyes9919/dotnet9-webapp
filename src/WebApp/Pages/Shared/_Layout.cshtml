@@ -1,12 +1,12 @@
 ﻿@using Microsoft.AspNetCore.Identity
-@using WebApp.Utils
 @inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@inject WebApp.Models.BuildInfo Build
 
 @{
     var envName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Unknown";
     var hostPort = HttpContextAccessor?.HttpContext?.Request?.Host.Value ?? "";
-    var ver = VersionInfo.AppVersion;
-    var build = VersionInfo.BuildLabel;
+    var ver = Build?.Version ?? "v0.1.0";
+    var build = Build?.BuildTime ?? "unknown";
     var isAuthenticated = HttpContextAccessor?.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
     var userName = HttpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "";
 }
@@ -48,9 +48,10 @@
                         </ul>
 
                         <div class="d-flex align-items-center me-2">
-                            <span class="badge bg-secondary me-1">v @ver</span>
+                            <span class="badge bg-secondary me-1">@ver</span>
                             <span class="badge bg-info text-dark me-1">@envName</span>
-                            @if (!string.IsNullOrWhiteSpace(build))
+                            @if (!string.IsNullOrWhiteSpace(build) && !string.Equals(build, "unknown",
+                                                        StringComparison.OrdinalIgnoreCase))
                             {
                                 <span class="badge bg-light text-dark me-1">@build</span>
                             }
@@ -104,6 +105,3 @@
     </body>
 
 </html>
-
-<!-- CI smoke test marker -->
-<footer style=\"text-align:center;font-size:12px;opacity:.6\">Build smoke test OK</footer>
