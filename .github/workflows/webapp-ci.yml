@@ -1,76 +1,121 @@
 name: build_and_deploy
 
 on:
+  # すべての push をトリガー（main 以外はビルド/テストのみ、main はデプロイも実行）
   push:
-    branches: [ "main" ]
-    paths-ignore:
-      - "README.md"
-      - "**/*.md"
+    branches:
+      - "**"
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - ".github/workflows/webapp-ci.yml"
+
+  # main 宛ての PR でビルド/テスト
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - ".github/workflows/webapp-ci.yml"
+
+  # 手動実行（必要に応じて）
   workflow_dispatch:
 
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
-  COPILOT_APP: ${{ secrets.COPILOT_APP }}
-  COPILOT_ENV: ${{ secrets.COPILOT_ENV }}
-  COPILOT_SERVICE: ${{ secrets.COPILOT_SERVICE }}
-  ECR_REPO: webapp/webapp
-  IMAGE_TAG: latest
+  AWS_REGION: ap-northeast-1
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
-  build_and_deploy:
+  build_and_test:
+    name: Build and test
     runs-on: ubuntu-latest
+
     steps:
-      - name: Post Checkout
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Post Configure AWS credentials
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        run: dotnet restore ./src/WebApp/WebApp.csproj
+
+      - name: Build
+        run: dotnet build ./src/WebApp/WebApp.csproj -c Release --no-restore
+
+      # テストは存在すれば実行（無ければスキップして成功扱い）
+      - name: Test
+        run: |
+          if [ -f ./tests/WebApp.IntegrationTests/WebApp.IntegrationTests.csproj ]; then
+            dotnet test ./tests/WebApp.IntegrationTests/WebApp.IntegrationTests.csproj -c Release --no-build
+          else
+            echo "No test project found. Skipping tests."
+          fi
+
+  deploy:
+    name: Deploy to Fargate via Copilot
+    needs: build_and_test
+    runs-on: ubuntu-latest
+
+    # main への push だけデプロイする（PR 作成/更新や feature ブランチでは実行しない）
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    concurrency:
+      group: "deploy-test-env"
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region:            ${{ env.AWS_REGION }}
 
-      - name: Post Login to Amazon ECR
+      - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Post Set up QEMU (for ARM builds)
-        uses: docker/setup-qemu-action@v3
-
-      - name: Post Set up Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push image (linux/arm64)
-        uses: docker/build-push-action@v6
-        with:
-          context: ./src/WebApp
-          file: ./src/WebApp/Dockerfile
-          push: true
-          platforms: linux/arm64
-          tags: |
-            ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}
-          build-args: |
-            DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+        run: |
+          IMAGE="${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/webapp/webapp:latest"
+          docker buildx build \
+            --platform linux/arm64 \
+            -t "$IMAGE" \
+            -f ./src/WebApp/Dockerfile ./src/WebApp \
+            --push
 
       - name: Install Copilot CLI
         run: |
-          set -eux
-          tmp=/tmp/copilot
-          curl -sSL -o "$tmp" https://github.com/aws/copilot-cli/releases/latest/download/copilot-linux
-          chmod +x "$tmp"
-          sudo mv "$tmp" /usr/local/bin/copilot
+          curl -Lo copilot https://github.com/aws/copilot-cli/releases/latest/download/copilot-linux
+          chmod +x copilot
+          sudo mv copilot /usr/local/bin/copilot
           copilot --version
 
       - name: Copilot deploy to Fargate
         run: |
-          set -eux
           copilot svc deploy \
-            --app "${COPILOT_APP}" \
-            --name "${COPILOT_SERVICE}" \
-            --env "${COPILOT_ENV}" \
+            --app "${{ secrets.COPILOT_APP }}" \
+            --env "${{ secrets.COPILOT_ENV }}" \
+            --name "${{ secrets.COPILOT_SERVICE }}" \
             --force
 
       - name: Output Service URL
         run: |
-          copilot svc show -n "${COPILOT_SERVICE}" | sed -n '1,120p'
+          copilot svc show -a "${{ secrets.COPILOT_APP }}" -n "${{ secrets.COPILOT_SERVICE }}"
+# CI trigger test 2025年 10月15日 水曜日 18時43分17秒 JST
