@@ -13,10 +13,9 @@ builder.Services.AddRazorPages();                     // Razor Pages をサー�
 // HttpContextAccessor 登録（_Layout.cshtml などで使用）
 builder.Services.AddHttpContextAccessor();            // View/サービスから HttpContext を取得できるようにするアクセサをDI登録
 
-// DataProtection キー永続化（Cookieエラー防止、開発用）
-builder.Services.AddDataProtection()                  // データ保護（Cookie暗号、CSRFトークン等）機能を構成
-    .PersistKeysToFileSystem(new DirectoryInfo("/tmp/aspnet-dp-keys")) // 暗号キーをファイルに永続化（コンテナ/再起動でもキーを共有）
-    .SetApplicationName("WebApp");                    // 同一キーリングを共有するApp名を指定（スロット/複数インスタンス間で整合させる）
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<AppDbContext>()   // ★ ここがポイント：DBにキー保存
+    .SetApplicationName("WebApp-Prod");       // ★ 環境ごとに名前を変えると安全（例：WebApp-Test）
 
 // DB 接続設定
 var conn = builder.Configuration.GetConnectionString("Default") // appsettings の "ConnectionStrings:Default" を優先して取得
