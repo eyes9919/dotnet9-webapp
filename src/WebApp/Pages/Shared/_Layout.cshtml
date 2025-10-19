@@ -6,7 +6,6 @@
     var envName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Unknown";
     var hostPort = HttpContextAccessor?.HttpContext?.Request?.Host.Value ?? "";
     var ver = Build?.Version ?? "v0.1.0";
-    var build = Build?.BuildTime ?? "unknown";
     var isAuthenticated = HttpContextAccessor?.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
     var userName = HttpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "";
 }
@@ -50,11 +49,6 @@
                         <div class="d-flex align-items-center me-2">
                             <span class="badge bg-secondary me-1">@ver</span>
                             <span class="badge bg-info text-dark me-1">@envName</span>
-                            @if (!string.IsNullOrWhiteSpace(build) && !string.Equals(build, "unknown",
-                                                        StringComparison.OrdinalIgnoreCase))
-                            {
-                                <span class="badge bg-light text-dark me-1">@build</span>
-                            }
                             @if (!string.IsNullOrWhiteSpace(hostPort))
                             {
                                 <span class="badge bg-light text-dark">@hostPort</span>
