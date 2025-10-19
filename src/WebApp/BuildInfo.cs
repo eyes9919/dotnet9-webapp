@@ -14,7 +14,7 @@ public sealed class BuildInfo
     public string Version { get; init; } = "v0.1.0";
 
     /// <summary>
-    /// ビルド時刻（UTC ISO8601形式）。
+    /// ビルド時刻（JST ISO8601形式）。
     /// </summary>
     public string BuildTime { get; init; } = "unknown";
 
@@ -26,9 +26,19 @@ public sealed class BuildInfo
                   ?? Environment.GetEnvironmentVariable("APP_VERSION")
                   ?? "v0.1.0";
 
-        BuildTime = asm.GetCustomAttributes<AssemblyMetadataAttribute>()
-                       .FirstOrDefault(a => a.Key == "BuildTime")?.Value
-                    ?? Environment.GetEnvironmentVariable("BUILD_TIME")
-                    ?? "unknown";
+        var buildTimeRaw = asm.GetCustomAttributes<AssemblyMetadataAttribute>()
+                              .FirstOrDefault(a => a.Key == "BuildTime")?.Value
+                           ?? Environment.GetEnvironmentVariable("BUILD_TIME")
+                           ?? "unknown";
+
+        if (DateTimeOffset.TryParse(buildTimeRaw, out var dto))
+        {
+            var jst = dto.ToOffset(TimeSpan.FromHours(9));
+            BuildTime = jst.ToString("yyyy-MM-ddTHH:mm:sszzz");
+        }
+        else
+        {
+            BuildTime = "unknown";
+        }
     }
 }
