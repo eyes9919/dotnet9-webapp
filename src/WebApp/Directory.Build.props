@@ -1,19 +1,17 @@
 <Project>
-  <!-- 表示用の基本バージョン -->
   <PropertyGroup>
     <VersionPrefix>0.1.0</VersionPrefix>
 
-    <!-- 毎回ビルド時に JST の時刻を生成（例: 2025-10-15T20:31:45+09:00） -->
-    <BuildTimeJst>$([System.DateTime]::Now.ToString("yyyy-MM-ddTHH:mm:ss+09:00"))</BuildTimeJst>
+    <!-- UTC に +9h してフォーマット。オフセットは文字列で固定 -->
+    <BuildTimeJst>$([System.DateTime]::UtcNow.AddHours(9).ToString("yyyy-MM-ddTHH:mm:ss"))+09:00</BuildTimeJst>
 
-    <!-- CI が SourceRevisionId を渡さない場合は JST 時刻を識別子として使う -->
+    <!-- CI が SourceRevisionId を渡さない場合は JST 時刻を識別子に -->
     <SourceRevisionId Condition="'$(SourceRevisionId)'==''">$(BuildTimeJst)</SourceRevisionId>
 
-    <!-- 例: v0.1.0+2025-10-15T20:31:45+09:00  / v0.1.0+<commit-sha> -->
+    <!-- v0.1.0+2025-10-15T20:31:45+09:00 のように刻印 -->
     <InformationalVersion>v$(VersionPrefix)+$(SourceRevisionId)</InformationalVersion>
   </PropertyGroup>
 
-  <!-- アセンブリ メタデータに BuildTime を埋め込む（コード内から読める） -->
   <ItemGroup>
     <AssemblyMetadata Include="BuildTime" Value="$(BuildTimeJst)" />
   </ItemGroup>
